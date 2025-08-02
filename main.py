@@ -1,106 +1,144 @@
-import socket# libary to connect with TCP/IP, UDP network
-import requests # libary to send HTTP requests
-import dns.resolver # libary to reslove DNS 
+import customtkinter as ctk
+import socket
+import requests
+import dns.resolver
 
-
-
-def get_local_ip(): # lấy địa chỉ ip cục bộ của máy tính đang connect to
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        #tạo socket udp và kế t nối đến địa chỉ gg: 8.8.8.8 ở port 80
-
-        local_ip = s.getstockname()[0] # trả về địa chỉ ip cục bộ của máy tính kết nối và lưu ở local ip
-        s.close()
-        return local_ip
-    except Exception as e:
-        return f"khong the lay duoc dia chi IP cuc bo: {e}"
+class ip():
+    def __init__(self):
+        self.local_ip = self.get_local_ip()
+        self.public_ip = self.get_public_ip()
+        self.dns_names = self.lookup_dns(self.public_ip)
+        self.geolocation_info = self.get_ip_geolocation(self.public_ip)
     
 
-def get_public_ip(): # lấy địa chỉ ip public của máy, ip mà internet đang nhìn thấy
-    try:
-        response = requests.get("https://api.ipify.org?format=json") # gửi http requests đến địa chỉ này, sau đó server sẽ trả về một địa chỉ ip công cộng của máy dưới dạng JSON
-        # -> cho thấy được ip mà web server nhìn thấy được từ máy của mình
-        response.raise_for_status() #kiểm tra xem có lỗi gì trong quá trình thực thi kh, nếu có thì raise lỗi
-        return response.json()["ip"] # trả về local ip từ response json
-    except requests.exceptions.RequestException as e:
-        return f"kh thhe lay duoc ip cong cong: {e}"
-    
-def lookup_dns(ip_address):
-    """Tra cứu DNS cho một địa chỉ IP (sử dụng thư viện dnspython)."""
-    try:
-        # Tra cứu tên miền ngược (PTR record)
-        # Chuyển đổi IP sang định dạng đảo ngược cho tra cứu PTR
-        reversed_ip = '.'.join(ip_address.split('.')[::-1]) + '.in-addr.arpa'
-        answers = dns.resolver.resolve(reversed_ip, 'PTR')
-        dns_names = [str(rdata) for rdata in answers]
-        return dns_names
-    except dns.resolver.NXDOMAIN:
-        return ["Không tìm thấy tên miền (NXDOMAIN)"]
-    except dns.resolver.NoAnswer:
-        return ["Không có bản ghi PTR (NoAnswer)"]
-    except dns.resolver.Timeout:
-        return ["Hết thời gian chờ tra cứu DNS"]
-    except Exception as e:
-        return [f"Lỗi khi tra cứu DNS: {e}"]
-    
-def get_ip_geolocation(ip_address):
-    """Lấy thông tin địa lý (vùng, quốc gia) của một địa chỉ IP."""                         
-    try:
-        response = requests.get(f"https://ipapi.co/{ip_address}/json/")
-        response.raise_for_status()
-        data = response.json()
-        if data.get("error"):
-            return f"Lỗi từ API địa lý: {data['reason']}"
+    def get_local_ip(self):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
 
-        city = data.get("city", "Không rõ")
-        region = data.get("region", "Không rõ")
-        country_name = data.get("country_name", "Không rõ")
-        latitude = data.get("latitude", "Không rõ")
-        longitude = data.get("longitude", "Không rõ")
-        org = data.get("org", "Không rõ")
+            local_ip = s.getsockname()[0]
+            s.close()
+            return local_ip
+        except Exception as e:
+            return f"can't take local ip: {e}"
 
-        return {
-            "Thành phố": city,
-            "Vùng": region,
-            "Quốc gia": country_name,
-            "Vĩ độ": latitude,
-            "Kinh độ": longitude,
-            "Tổ chức/ISP": org
-        }
-    except requests.exceptions.RequestException as e:
-        return f"Không thể lấy thông tin địa lý: {e}"
+    def get_public_ip(self):
+        try:
+            response = requests.get("https://api.ipify.org?format=json")
+            response.raise_for_status()
+            return response.json()["ip"]
+        except requests.exceptions.RequestException as e:
+            return f"can't take public ip: {e}"
+        
+    def lookup_dns(self, ip_address):
+        try:
+            reversed_ip = '.'.join(ip_address.split('.')[::-1]) + '.in-addr.arpa'
+            answers = dns.resolver.resolve(reversed_ip, 'PTR')
+            dns_names = [str(rdata) for rdata in answers]
+            return dns_names
+        except dns.resolver.NXDOMAIN:
+            return ["Can't find domain name (NXDOMAIN)"]
+        except dns.resolver.NoAnswer:
+            return ["Not have record PTR (NoAnswer)"]
+        except dns.resolver.Timeout:
+            return ["Over time to take DNS"]
+        except Exception as e:
+            return [f"ERROR with DNS: {e}"]
 
-def main():
-    print("Đang lấy thông tin IP của thiết bị...")
+    def get_ip_geolocation(self, ip_address):
+        try:
+            response = requests.get(f"https://ipapi.co/{ip_address}/json/")
+            response.raise_for_status()
+            data = response.json()
+            if data.get("error"):
+                return f"Error from geolocation API: {data['reason']}"
 
-    # Lấy IP cục bộ
-    local_ip = get_local_ip()
-    print(f"\nĐịa chỉ IP cục bộ: {local_ip}")
+            city = data.get("city", "Unknown")
+            region = data.get("region", "Unknown")
+            country_name = data.get("country_name", "Unknown")
+            latitude = data.get("latitude", "Unknown")
+            longitude = data.get("longitude", "Unknown")
+            org = data.get("org", "Unknown")
 
-    # Lấy IP công cộng
-    public_ip = get_public_ip()
-    print(f"\nĐịa chỉ IP công cộng: {public_ip}")
+            return {
+                "city": city,
+                "region": region,
+                "country_name": country_name,
+                "latitude": latitude,
+                "longitude": longitude,
+                "org": org
+            }
+        except requests.exceptions.RequestException as e:
+            return f"Error with geolocation API: {e}"
 
-    if "Không thể" not in public_ip:
-        # Tra cứu DNS từ IP công cộng
-        print(f"\nĐang tra cứu DNS cho IP công cộng ({public_ip})...")
-        dns_names = lookup_dns(public_ip)
-        print("Tên miền (DNS) liên quan:")
-        for name in dns_names:
-            print(f"- {name}")
 
-        # Lấy thông tin địa lý từ IP công cộng
-        print(f"\nĐang lấy thông tin địa lý cho IP công cộng ({public_ip})...")
-        geolocation_info = get_ip_geolocation(public_ip)
-        print("Thông tin địa lý:")
-        if isinstance(geolocation_info, dict):
-            for key, value in geolocation_info.items():
-                print(f"- {key}: {value}")
-        else:
-            print(geolocation_info)
-    else:
-        print("\nKhông thể thực hiện tra cứu DNS và địa lý vì không lấy được IP công cộng.")
+class App(ctk.CTk):
+    def __init__(self):
+        super().__init__()
 
-if __name__ == "__main__":
-    main()
+        self.title("IP and dns app")
+        self.geometry("300x400")
+
+     
+        self.label = ctk.CTkLabel(self, text="Testing...\n")
+        self.label.pack(pady=20)
+
+        info_text = f"Local IP: {ip().local_ip}\n" \
+                    f"Public IP: {ip().public_ip}\n" \
+                    f"DNS Names: {', '.join(ip().dns_names)}\n" \
+                    f"Geolocation Info:\n" 
+        
+        self.info_box = ctk.CTkTextbox(self, width=400, height=200)
+        self.info_box.pack(pady=20, padx=20, fill='both', expand=True)
+        self.info_box.insert("0.0", info_text)
+        self.info_box.configure(state="disabled")  # Make the textbox read-only
+
+
+
+        self.button = ctk.CTkButton(self, text = "ip to website", command=self.on_button_click)
+        self.button.pack(pady=20, padx=20)
+
+
+    def on_button_click(self):
+        input_window = ctk.CTkToplevel(self)
+        input_window.title("Input name website")
+        input_window.geometry("500x200")
+
+        label = ctk.CTkLabel(input_window, text="Enter name of website:")
+        label.pack(pady=20, padx=20)
+
+        entry = ctk.CTkEntry(input_window, placeholder_text="Enter website name, e.g: example.com")
+        entry.pack(pady=10, padx=20, fill='x', expand=True)
+
+
+        def submit():
+            text = entry.get()
+            print(f"You entered: {text}")
+            dns_record = {}
+            a_record = dns.resolver.resolve(text, 'A') 
+            for ipval in a_record:
+                dns_record['A_Record_IP'] = ipval.to_text()
+            mx_record_list = []
+            mx_record = dns.resolver.resolve(text, 'MX')
+            for server in mx_record:
+                mx_record_list.append(server)
+            for i, element in enumerate(mx_record_list):
+                dns_record[f'MX_Record_{i+1}'] = element.to_text()  
+            for key, value in dns_record.items():
+                print(f"{key}={value}")
+
+            
+
+            input_window.destroy()
+
+        submit_button = ctk.CTkButton(input_window, text="Submit", command=submit)
+        submit_button.pack(pady=10, padx=20)
+
+
+
+print("Starting the app...")
+
+
+
+app = App()
+app.mainloop()
