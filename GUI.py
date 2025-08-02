@@ -77,7 +77,7 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("IP and dns app")
-        self.geometry("1000x500")
+        self.geometry("300x400")
 
      
         self.label = ctk.CTkLabel(self, text="Testing...\n")
@@ -95,7 +95,7 @@ class App(ctk.CTk):
 
 
 
-        self.button = ctk.CTkButton(self, text = "click here", command=self.on_button_click)
+        self.button = ctk.CTkButton(self, text = "ip to website", command=self.on_button_click)
         self.button.pack(pady=20, padx=20)
 
 
@@ -107,13 +107,28 @@ class App(ctk.CTk):
         label = ctk.CTkLabel(input_window, text="Enter name of website:")
         label.pack(pady=20, padx=20)
 
-        entry = ctk.CTkEntry(input_window, placeholder_text="Enter website name")
+        entry = ctk.CTkEntry(input_window, placeholder_text="Enter website name, e.g: example.com")
         entry.pack(pady=10, padx=20, fill='x', expand=True)
 
 
         def submit():
             text = entry.get()
             print(f"You entered: {text}")
+            dns_record = {}
+            a_record = dns.resolver.resolve(text, 'A') 
+            for ipval in a_record:
+                dns_record['A_Record_IP'] = ipval.to_text()
+            mx_record_list = []
+            mx_record = dns.resolver.resolve(text, 'MX')
+            for server in mx_record:
+                mx_record_list.append(server)
+            for i, element in enumerate(mx_record_list):
+                dns_record[f'MX_Record_{i+1}'] = element.to_text()  
+            for key, value in dns_record.items():
+                print(f"{key}={value}")
+
+            
+
             input_window.destroy()
 
         submit_button = ctk.CTkButton(input_window, text="Submit", command=submit)
